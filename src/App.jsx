@@ -60,12 +60,19 @@ function urlFor(pageId, itemId) {
   return `${base}/`
 }
 
+let guardSerial = 0
+
 function pushGuard(pageId, itemId) {
-  window.history.pushState(
-    { page: pageId, itemId, guard: true },
-    '',
-    urlFor(pageId, itemId),
-  )
+  const url = urlFor(pageId, itemId)
+  const state = { page: pageId, itemId, guard: true, n: ++guardSerial }
+  const marked = `${url}${url.includes('?') ? '&' : '?'}stay=${state.n}`
+  window.history.pushState(state, '', marked)
+  window.history.replaceState(state, '', url)
+}
+
+function holdPage(pageId, itemId) {
+  pushGuard(pageId, itemId)
+  pushGuard(pageId, itemId)
 }
 
 function App() {
@@ -74,6 +81,7 @@ function App() {
   const [itemId, setItemId] = useState(initial.itemId)
   const [dialog, setDialog] = useState(null)
   const locationRef = useRef({ pageId, itemId })
+  const restoringRef = useRef(false)
   const stayButtonRef = useRef(null)
   const page = PAGES[pageId]
   const item = ITEMS.find((entry) => entry.id === itemId) ?? null
@@ -87,20 +95,42 @@ function App() {
       '',
       urlFor(current.pageId, current.itemId),
     )
-    if (PAGES[current.pageId].protected) pushGuard(current.pageId, current.itemId)
+    if (PAGES[current.pageId].protected) holdPage(current.pageId, current.itemId)
     setPageId(current.pageId)
     setItemId(current.itemId)
 
     const onPopState = () => {
+      if (restoringRef.current) {
+        restoringRef.current = false
+        return
+      }
+
       const leaving = locationRef.current
       const leavingPage = PAGES[leaving.pageId]
       if (leavingPage?.protected) {
         const snapshot = { pageId: leaving.pageId, itemId: leaving.itemId }
+        const marker = window.history.state?.n
         setDialog(leavingPage)
+        restoringRef.current = true
+        window.history.go(1)
         window.setTimeout(() => {
-          if (locationRef.current.pageId !== snapshot.pageId) return
-          pushGuard(snapshot.pageId, snapshot.itemId)
+          if (locationRef.current.pageId !== snapshot.pageId) {
+            restoringRef.current = false
+            return
+          }
+          if (window.history.state?.n === marker) {
+            restoringRef.current = true
+            window.history.go(1)
+          }
         }, 0)
+        window.setTimeout(() => {
+          if (locationRef.current.pageId !== snapshot.pageId) {
+            restoringRef.current = false
+            return
+          }
+          if (window.history.state?.n === marker) holdPage(snapshot.pageId, snapshot.itemId)
+          restoringRef.current = false
+        }, 60)
         return
       }
 
@@ -144,7 +174,7 @@ function App() {
       '',
       urlFor(nextPageId, nextItemId),
     )
-    if (PAGES[nextPageId].protected) pushGuard(nextPageId, nextItemId)
+    if (PAGES[nextPageId].protected) holdPage(nextPageId, nextItemId)
     setPageId(nextPageId)
     setItemId(nextItemId)
     setDialog(null)
