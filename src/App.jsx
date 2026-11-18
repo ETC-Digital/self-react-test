@@ -1,20 +1,100 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
-const GUARD_STATE = { backGuard: true }
+const ITEMS = [
+  { id: 'A-1001', name: '山田商事', status: '受付済み', updated: '2026-11-18 09:20' },
+  { id: 'A-1002', name: '佐藤工業', status: '確認待ち', updated: '2026-11-18 10:05' },
+  { id: 'A-1003', name: '鈴木物流', status: '発送準備中', updated: '2026-11-18 11:40' },
+]
+
+const PAGES = {
+  home: {
+    id: 'home',
+    step: 'ステップ 1',
+    title: '一覧へ進む',
+    lead: 'ボタンを押して一覧ページを開きます。一覧または詳細でブラウザの戻るボタンを押すと、そのページに応じた注意が表示され、現在のページに留まります。',
+    protected: false,
+  },
+  list: {
+    id: 'list',
+    step: 'ステップ 2 · 一覧',
+    title: '案件一覧',
+    lead: '案件を選ぶと詳細ページへ移動します。このページで戻ると、一覧に関する注意が表示されます。',
+    protected: true,
+    warningTitle: '一覧から戻ると問題が起きる可能性があります',
+    warning: '一覧ページから戻ると、表示中の案件が正しく読み込まれない可能性があります。このページに留まります。',
+  },
+  detail: {
+    id: 'detail',
+    step: 'ステップ 3 · 詳細',
+    title: '案件詳細',
+    lead: '選択した案件の内容です。このページで戻ると、詳細に関する注意が表示されます。',
+    protected: true,
+    warningTitle: '詳細から戻ると問題が起きる可能性があります',
+    warning: '詳細ページから戻ると、選択した案件の状態が正しく表示されない可能性があります。このページに留まります。',
+  },
+}
+
+function readLocation() {
+  const [id, itemId] = window.location.hash.replace(/^#\/?/, '').split('/')
+  if (id === 'detail') {
+    const item = ITEMS.find((entry) => entry.id === itemId) ?? ITEMS[0]
+    return { pageId: 'detail', itemId: item.id }
+  }
+  if (PAGES[id]) return { pageId: id, itemId: null }
+  return { pageId: 'home', itemId: null }
+}
+
+function urlFor(pageId, itemId) {
+  const hash = pageId === 'detail' ? `detail/${itemId}` : pageId
+  return `${window.location.pathname}${window.location.search}#/${hash}`
+}
 
 function App() {
-  const [open, setOpen] = useState(false)
+  const initial = readLocation()
+  const [pageId, setPageId] = useState(initial.pageId)
+  const [itemId, setItemId] = useState(initial.itemId)
+  const [dialog, setDialog] = useState(null)
+  const locationRef = useRef({ pageId, itemId })
   const stayButtonRef = useRef(null)
+  const page = PAGES[pageId]
+  const item = ITEMS.find((entry) => entry.id === itemId) ?? null
+
+  locationRef.current = { pageId, itemId }
 
   useEffect(() => {
-    if (!window.history.state?.backGuard) {
-      window.history.pushState(GUARD_STATE, '')
-    }
+    const current = readLocation()
+    window.history.replaceState(
+      { page: current.pageId, itemId: current.itemId },
+      '',
+      urlFor(current.pageId, current.itemId),
+    )
+    setPageId(current.pageId)
+    setItemId(current.itemId)
 
     const onPopState = () => {
-      window.history.pushState(GUARD_STATE, '')
-      setOpen(true)
+      const leaving = locationRef.current
+      const leavingPage = PAGES[leaving.pageId]
+      if (leavingPage?.protected) {
+        window.history.pushState(
+          { page: leaving.pageId, itemId: leaving.itemId },
+          '',
+          urlFor(leaving.pageId, leaving.itemId),
+        )
+        setDialog(leavingPage)
+        return
+      }
+
+      const nextPage = window.history.state?.page
+      const nextItem = window.history.state?.itemId ?? null
+      if (PAGES[nextPage]) {
+        setPageId(nextPage)
+        setItemId(nextItem)
+        return
+      }
+      const fallback = readLocation()
+      setPageId(fallback.pageId)
+      setItemId(fallback.itemId)
     }
 
     window.addEventListener('popstate', onPopState)
@@ -22,14 +102,14 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!open) return undefined
+    if (!dialog) return undefined
 
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     stayButtonRef.current?.focus()
 
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key === 'Escape') setDialog(null)
     }
 
     window.addEventListener('keydown', onKeyDown)
@@ -37,36 +117,90 @@ function App() {
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [open])
+  }, [dialog])
+
+  const openPage = (nextPageId, nextItemId = null) => {
+    window.history.pushState(
+      { page: nextPageId, itemId: nextItemId },
+      '',
+      urlFor(nextPageId, nextItemId),
+    )
+    setPageId(nextPageId)
+    setItemId(nextItemId)
+    setDialog(null)
+  }
 
   return (
     <div className="page">
       <header className="topbar">
-        <span className="brand">当前页面</span>
-        <span className="layout-tag layout-tag--pc">电脑布局</span>
-        <span className="layout-tag layout-tag--mobile">手机布局</span>
+        <span className="brand">{page.step}</span>
+        <span className="layout-tag layout-tag--pc">パソコン表示</span>
+        <span className="layout-tag layout-tag--mobile">スマホ表示</span>
       </header>
 
       <main className="content">
         <section className="intro">
-          <p className="eyebrow">返回保护已开启</p>
-          <h1>停留在这一页</h1>
-          <p className="lead">
-            点击浏览器的返回按钮，或在手机上从屏幕边缘向右滑返回。页面会弹出提示，并继续留在这里。
-          </p>
+          <p className="eyebrow">{page.protected ? '戻る操作を保護しています' : 'このページは通常どおり戻れます'}</p>
+          <h1>{page.title}</h1>
+          <p className="lead">{page.lead}</p>
+
+          {pageId === 'list' && (
+            <ul className="item-list">
+              {ITEMS.map((entry) => (
+                <li key={entry.id}>
+                  <button type="button" onClick={() => openPage('detail', entry.id)}>
+                    <span>
+                      <strong>{entry.name}</strong>
+                      <span className="item-meta">受付番号 {entry.id}</span>
+                    </span>
+                    <span className="item-status">{entry.status}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {pageId === 'detail' && item && (
+            <dl className="detail-list">
+              <div>
+                <dt>受付番号</dt>
+                <dd>{item.id}</dd>
+              </div>
+              <div>
+                <dt>取引先</dt>
+                <dd>{item.name}</dd>
+              </div>
+              <div>
+                <dt>状態</dt>
+                <dd>{item.status}</dd>
+              </div>
+              <div>
+                <dt>更新日時</dt>
+                <dd>{item.updated}</dd>
+              </div>
+            </dl>
+          )}
+
+          {pageId === 'home' && (
+            <div className="actions">
+              <button type="button" className="next" onClick={() => openPage('list')}>
+                一覧を見る
+              </button>
+            </div>
+          )}
         </section>
 
         <aside className="status-card">
-          <h2>怎么试</h2>
-          <ol>
-            <li>先打开本页面，不要刷新。</li>
-            <li>点击浏览器左上角的返回按钮。</li>
-            <li>看到提示后点「留在当前页」，地址不会离开。</li>
-          </ol>
+          <h2>このページで戻るとき</h2>
+          {page.protected ? (
+            <p>{page.warning}</p>
+          ) : (
+            <p>最初のページでは戻る操作を止めません。一覧を開いてから、ブラウザの戻るボタンを試してください。</p>
+          )}
         </aside>
       </main>
 
-      {open && (
+      {dialog && (
         <div className="guard" role="presentation">
           <div
             className="guard__panel"
@@ -76,17 +210,15 @@ function App() {
             aria-describedby="guard-desc"
           >
             <p className="guard__mark" aria-hidden="true">!</p>
-            <h2 id="guard-title">返回可能会出错</h2>
-            <p id="guard-desc">
-              现在返回上一页可能会导致当前操作出错，已为你停留在当前页面。
-            </p>
+            <h2 id="guard-title">{dialog.warningTitle}</h2>
+            <p id="guard-desc">{dialog.warning}</p>
             <button
               ref={stayButtonRef}
               type="button"
               className="guard__stay"
-              onClick={() => setOpen(false)}
+              onClick={() => setDialog(null)}
             >
-              留在当前页
+              このページに留まる
             </button>
           </div>
         </div>
