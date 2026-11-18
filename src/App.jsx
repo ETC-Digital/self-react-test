@@ -1,121 +1,97 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
+const GUARD_STATE = { backGuard: true }
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [open, setOpen] = useState(false)
+  const stayButtonRef = useRef(null)
+
+  useEffect(() => {
+    if (!window.history.state?.backGuard) {
+      window.history.pushState(GUARD_STATE, '')
+    }
+
+    const onPopState = () => {
+      window.history.pushState(GUARD_STATE, '')
+      setOpen(true)
+    }
+
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    stayButtonRef.current?.focus()
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+    <div className="page">
+      <header className="topbar">
+        <span className="brand">当前页面</span>
+        <span className="layout-tag layout-tag--pc">电脑布局</span>
+        <span className="layout-tag layout-tag--mobile">手机布局</span>
+      </header>
+
+      <main className="content">
+        <section className="intro">
+          <p className="eyebrow">返回保护已开启</p>
+          <h1>停留在这一页</h1>
+          <p className="lead">
+            点击浏览器的返回按钮，或在手机上从屏幕边缘向右滑返回。页面会弹出提示，并继续留在这里。
           </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+        </section>
 
-      <div className="ticks"></div>
+        <aside className="status-card">
+          <h2>怎么试</h2>
+          <ol>
+            <li>先打开本页面，不要刷新。</li>
+            <li>点击浏览器左上角的返回按钮。</li>
+            <li>看到提示后点「留在当前页」，地址不会离开。</li>
+          </ol>
+        </aside>
+      </main>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {open && (
+        <div className="guard" role="presentation">
+          <div
+            className="guard__panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="guard-title"
+            aria-describedby="guard-desc"
+          >
+            <p className="guard__mark" aria-hidden="true">!</p>
+            <h2 id="guard-title">返回可能会出错</h2>
+            <p id="guard-desc">
+              现在返回上一页可能会导致当前操作出错，已为你停留在当前页面。
+            </p>
+            <button
+              ref={stayButtonRef}
+              type="button"
+              className="guard__stay"
+              onClick={() => setOpen(false)}
+            >
+              留在当前页
+            </button>
+          </div>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      )}
+    </div>
   )
 }
 
