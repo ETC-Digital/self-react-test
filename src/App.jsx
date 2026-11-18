@@ -60,6 +60,14 @@ function urlFor(pageId, itemId) {
   return `${base}/`
 }
 
+function pushGuard(pageId, itemId) {
+  window.history.pushState(
+    { page: pageId, itemId, guard: true },
+    '',
+    urlFor(pageId, itemId),
+  )
+}
+
 function App() {
   const initial = readLocation()
   const [pageId, setPageId] = useState(initial.pageId)
@@ -79,6 +87,7 @@ function App() {
       '',
       urlFor(current.pageId, current.itemId),
     )
+    if (PAGES[current.pageId].protected) pushGuard(current.pageId, current.itemId)
     setPageId(current.pageId)
     setItemId(current.itemId)
 
@@ -86,12 +95,12 @@ function App() {
       const leaving = locationRef.current
       const leavingPage = PAGES[leaving.pageId]
       if (leavingPage?.protected) {
-        window.history.pushState(
-          { page: leaving.pageId, itemId: leaving.itemId },
-          '',
-          urlFor(leaving.pageId, leaving.itemId),
-        )
+        const snapshot = { pageId: leaving.pageId, itemId: leaving.itemId }
         setDialog(leavingPage)
+        window.setTimeout(() => {
+          if (locationRef.current.pageId !== snapshot.pageId) return
+          pushGuard(snapshot.pageId, snapshot.itemId)
+        }, 0)
         return
       }
 
@@ -135,6 +144,7 @@ function App() {
       '',
       urlFor(nextPageId, nextItemId),
     )
+    if (PAGES[nextPageId].protected) pushGuard(nextPageId, nextItemId)
     setPageId(nextPageId)
     setItemId(nextItemId)
     setDialog(null)
