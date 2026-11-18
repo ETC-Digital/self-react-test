@@ -35,19 +35,29 @@ const PAGES = {
   },
 }
 
+function appPath() {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+  const path = window.location.pathname
+  const relative = base && path.startsWith(base) ? path.slice(base.length) : path
+  const hash = window.location.hash.replace(/^#\/?/, '')
+  return (hash || relative).replace(/^\/+|\/+$/g, '')
+}
+
 function readLocation() {
-  const [id, itemId] = window.location.hash.replace(/^#\/?/, '').split('/')
+  const [id, itemId] = appPath().split('/')
   if (id === 'detail') {
-    const item = ITEMS.find((entry) => entry.id === itemId) ?? ITEMS[0]
-    return { pageId: 'detail', itemId: item.id }
+    const item = ITEMS.find((entry) => entry.id === itemId)
+    if (item) return { pageId: 'detail', itemId: item.id }
   }
-  if (PAGES[id]) return { pageId: id, itemId: null }
+  if (id === 'list') return { pageId: 'list', itemId: null }
   return { pageId: 'home', itemId: null }
 }
 
 function urlFor(pageId, itemId) {
-  const hash = pageId === 'detail' ? `detail/${itemId}` : pageId
-  return `${window.location.pathname}${window.location.search}#/${hash}`
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+  if (pageId === 'list') return `${base}/list`
+  if (pageId === 'detail') return `${base}/detail/${itemId}`
+  return `${base}/`
 }
 
 function App() {
