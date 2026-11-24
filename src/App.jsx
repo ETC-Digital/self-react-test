@@ -10,7 +10,7 @@ const PAGES = {
     title: '次のページ',
     protected: true,
     warningTitle: '戻ると問題が起きる可能性があります',
-    warning: 'このページに留まります。',
+    warning: '前の画面に戻ると、システムエラーが発生する可能性があります。現在の画面に留まってください。',
   },
 }
 
@@ -115,10 +115,9 @@ function App() {
       {open && (
         <div className="dialog-backdrop">
           <div className="dialog" role="dialog" aria-modal="true">
-            <h2>{PAGES.next.warningTitle}</h2>
             <p>{PAGES.next.warning}</p>
             <button type="button" onClick={() => setOpen(false)}>
-              閉じる
+              OK
             </button>
           </div>
         </div>
