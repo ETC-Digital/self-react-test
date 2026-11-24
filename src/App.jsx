@@ -116,7 +116,7 @@ function App() {
         <div className="dialog-backdrop">
           <div className="dialog" role="dialog" aria-modal="true">
             <p>{PAGES.next.warning}</p>
-            <button type="button" onClick={() => setOpen(false)}>
+            <button type="button" onClick={() => setOpen(false)} style={{backgroundColor:"black",color:"white",marginLeft:"300px"}}>
               OK
             </button>
           </div>
